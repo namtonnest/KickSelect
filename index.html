@@ -11,6 +11,11 @@
         #voice-icon { width: 80px; height: 80px; border: 3px solid #00ffcc; border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow: 0 0 15px #00ffcc; cursor: pointer; background: rgba(0, 255, 204, 0.1); transition: all 0.3s; }
         #voice-icon:hover { background: rgba(0, 255, 204, 0.3); transform: scale(1.05); }
         #voice-icon.active { background: rgba(0, 255, 204, 0.3); box-shadow: 0 0 25px #00ffcc; }
+        .drum-effects-container { position: relative; display: flex; align-items: center; justify-content: center; gap: 40px; }
+        .effect-btn { width: 70px; height: 70px; border: 3px solid #ffaa00; border-radius: 50%; display: flex; flex-direction: column; align-items: center; justify-content: center; box-shadow: 0 0 15px #ffaa00; cursor: pointer; background: rgba(255, 170, 0, 0.1); transition: all 0.3s; font-size: 0.7rem; color: #ffaa00; font-weight: bold; }
+        .effect-btn:hover { background: rgba(255, 170, 0, 0.3); transform: scale(1.05); }
+        .effect-btn.active { background: rgba(255, 170, 0, 0.4); box-shadow: 0 0 25px #ffaa00; border-color: #ffcc00; }
+        .effect-btn svg { margin-bottom: 3px; }
         #drum-icon { width: 200px; height: 200px; border: 4px solid #ff00ff; border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow: 0 0 20px #ff00ff; transition: transform 0.1s; cursor: pointer; }
         #drum-icon.pulse { transform: scale(1.1); background: rgba(255, 0, 255, 0.2); }
         @keyframes pulse {
@@ -45,12 +50,26 @@
                 <line x1="8" y1="23" x2="16" y2="23"></line>
             </svg>
         </div>
-        <div id="drum-icon" onclick="playCurrentKick()">
-            <svg width="100" height="100" viewBox="0 0 24 24" fill="none" stroke="#ff00ff" stroke-width="1.5">
-                <ellipse cx="12" cy="9" rx="10" ry="5"></ellipse>
-                <path d="M2 9v6c0 2.5 4.5 5 10 5s10-2.5 10-5V9"></path>
-                <path d="M7 12.5v3M12 14v3M17 12.5v3"></path>
-            </svg>
+        <div class="drum-effects-container">
+            <div class="effect-btn" id="reverb-btn" onclick="toggleReverb()">
+                <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#ffaa00" stroke-width="2">
+                    <path d="M12 2v20M2 12h20M17.5 6.5l-11 11M6.5 6.5l11 11"></path>
+                </svg>
+                <span>REVERB</span>
+            </div>
+            <div id="drum-icon" onclick="playCurrentKick()">
+                <svg width="100" height="100" viewBox="0 0 24 24" fill="none" stroke="#ff00ff" stroke-width="1.5">
+                    <ellipse cx="12" cy="9" rx="10" ry="5"></ellipse>
+                    <path d="M2 9v6c0 2.5 4.5 5 10 5s10-2.5 10-5V9"></path>
+                    <path d="M7 12.5v3M12 14v3M17 12.5v3"></path>
+                </svg>
+            </div>
+            <div class="effect-btn" id="distortion-btn" onclick="toggleDistortion()">
+                <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#ffaa00" stroke-width="2">
+                    <path d="M3 12 L6 8 L9 16 L12 4 L15 14 L18 8 L21 12"></path>
+                </svg>
+                <span>DISTORT</span>
+            </div>
         </div>
     </div>
 
@@ -107,6 +126,15 @@ audioPlayer.preload = 'auto';
 let lastBeatTime = 0;
 let beatDrift = 0;
 
+// Web Audio API setup
+let audioContext = null;
+let sourceNode = null;
+let gainNode = null;
+let distortionNode = null;
+let convolverNode = null;
+let reverbEnabled = false;
+let distortionEnabled = false;
+
 function shuffleKick() {
     const drum = document.getElementById('drum-icon');
     const fileText = document.getElementById('filename');
@@ -116,11 +144,15 @@ function shuffleKick() {
     fileText.innerText = currentKick.toUpperCase();
 
     // Play the actual audio file
-    const audio = new Audio(currentKick);
-    audio.play().catch(err => {
-        console.error('Audio playback failed:', err);
-        document.getElementById('status').innerText = 'Tap to play';
-    });
+    if (reverbEnabled || distortionEnabled) {
+        playWithEffects(currentKick);
+    } else {
+        const audio = new Audio(currentKick);
+        audio.play().catch(err => {
+            console.error('Audio playback failed:', err);
+            document.getElementById('status').innerText = 'Tap to play';
+        });
+    }
 
     // Visual pulse using CSS animation
     drum.classList.remove('pulsing');
@@ -135,16 +167,144 @@ function playCurrentKick() {
     }
     
     const drum = document.getElementById('drum-icon');
-    const audio = new Audio(currentKick);
-    audio.play().catch(err => {
-        console.error('Audio playback failed:', err);
-        document.getElementById('status').innerText = 'Tap to play';
-    });
+    
+    if (reverbEnabled || distortionEnabled) {
+        playWithEffects(currentKick);
+    } else {
+        const audio = new Audio(currentKick);
+        audio.play().catch(err => {
+            console.error('Audio playback failed:', err);
+            document.getElementById('status').innerText = 'Tap to play';
+        });
+    }
     
     // Visual pulse using CSS animation
     drum.classList.remove('pulsing');
     void drum.offsetWidth; // Force reflow
     drum.classList.add('pulsing');
+}
+
+function playWithEffects(audioFile) {
+    // Initialize audio context if not already done
+    if (!audioContext) {
+        audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        
+        // Create nodes
+        gainNode = audioContext.createGain();
+        distortionNode = audioContext.createWaveShaper();
+        convolverNode = audioContext.createConvolver();
+        
+        // Setup distortion
+        distortionNode.curve = makeDistortionCurve(400);
+        distortionNode.oversample = '4x';
+        
+        // Create impulse response for reverb
+        createReverbImpulse();
+    }
+    
+    // Fetch and decode audio
+    fetch(audioFile)
+        .then(response => response.arrayBuffer())
+        .then(arrayBuffer => audioContext.decodeAudioData(arrayBuffer))
+        .then(audioBuffer => {
+            // Create source
+            if (sourceNode) {
+                sourceNode.stop();
+            }
+            sourceNode = audioContext.createBufferSource();
+            sourceNode.buffer = audioBuffer;
+            
+            // Connect nodes based on enabled effects
+            let currentNode = sourceNode;
+            
+            if (distortionEnabled) {
+                currentNode.connect(distortionNode);
+                currentNode = distortionNode;
+            }
+            
+            if (reverbEnabled) {
+                currentNode.connect(convolverNode);
+                currentNode = convolverNode;
+            }
+            
+            currentNode.connect(gainNode);
+            gainNode.connect(audioContext.destination);
+            
+            sourceNode.start(0);
+        })
+        .catch(err => {
+            console.error('Audio playback with effects failed:', err);
+            document.getElementById('status').innerText = 'Effects failed';
+        });
+}
+
+function makeDistortionCurve(amount) {
+    const k = typeof amount === 'number' ? amount : 50;
+    const n_samples = 44100;
+    const curve = new Float32Array(n_samples);
+    const deg = Math.PI / 180;
+    
+    for (let i = 0; i < n_samples; i++) {
+        const x = (i * 2) / n_samples - 1;
+        curve[i] = ((3 + k) * x * 20 * deg) / (Math.PI + k * Math.abs(x));
+    }
+    return curve;
+}
+
+function createReverbImpulse() {
+    const sampleRate = audioContext.sampleRate;
+    const length = sampleRate * 2; // 2 second reverb
+    const impulse = audioContext.createBuffer(2, length, sampleRate);
+    const impulseL = impulse.getChannelData(0);
+    const impulseR = impulse.getChannelData(1);
+    
+    for (let i = 0; i < length; i++) {
+        const n = length - i;
+        impulseL[i] = (Math.random() * 2 - 1) * Math.pow(n / length, 2);
+        impulseR[i] = (Math.random() * 2 - 1) * Math.pow(n / length, 2);
+    }
+    
+    convolverNode.buffer = impulse;
+}
+
+function toggleReverb() {
+    const btn = document.getElementById('reverb-btn');
+    const status = document.getElementById('status');
+    
+    reverbEnabled = !reverbEnabled;
+    
+    if (reverbEnabled) {
+        btn.classList.add('active');
+        status.innerText = 'Reverb: ON';
+    } else {
+        btn.classList.remove('active');
+        status.innerText = 'Reverb: OFF';
+    }
+    
+    setTimeout(() => {
+        if (!isLooping && !isVoiceActive) status.innerText = 'Voice Standby';
+        else if (isVoiceActive) status.innerText = 'Listening...';
+    }, 2000);
+}
+
+function toggleDistortion() {
+    const btn = document.getElementById('distortion-btn');
+    const status = document.getElementById('status');
+    
+    distortionEnabled = !distortionEnabled;
+    
+    if (distortionEnabled) {
+        btn.classList.add('active');
+        status.innerText = 'Distortion: ON';
+    } else {
+        btn.classList.remove('active');
+        status.innerText = 'Distortion: OFF';
+    }
+    
+    setTimeout(() => {
+        if (!isLooping && !isVoiceActive) status.innerText = 'Voice Standby';
+        else if (isVoiceActive) status.innerText = 'Listening...';
+    }, 2000);
 }
 
 function toggleLoop() {
@@ -214,6 +374,8 @@ function showVoiceInstructions() {
         '• "Play" or "Replay" or "Again" - Play current kick\n' +
         '• "Start loop" or "Loop" - Start looping\n' +
         '• "Stop loop" or "Stop looping" - Stop looping\n' +
+        '• "Reverb" - Toggle reverb effect\n' +
+        '• "Distortion" or "Distort" - Toggle distortion effect\n' +
         '• "Download" or "Save file" - Download current kick\n' +
         '• "Email" or "Send" - Email current kick\n' +
         '• "Tempo [number]" or "BPM [number]" - Set tempo (60-200)\n\n' +
@@ -337,6 +499,10 @@ function startVoiceRecognition(icon, status) {
             if (isLooping) toggleLoop();
         } else if (transcript.includes('download') || transcript.includes('save file')) {
             downloadKick();
+        } else if (transcript.includes('reverb')) {
+            toggleReverb();
+        } else if (transcript.includes('distortion') || transcript.includes('distort')) {
+            toggleDistortion();
         } else if (transcript.includes('email') || transcript.includes('send')) {
             sendEmail();
         } else if (transcript.includes('tempo') || transcript.includes('speed') || transcript.includes('bpm')) {
