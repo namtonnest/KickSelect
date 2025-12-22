@@ -32,6 +32,11 @@
         .tempo-control input { width: 200px; }
         .tempo-control label { color: #aaa; font-size: 0.9rem; }
         #tempo-display { color: #00ffcc; font-weight: bold; font-size: 1.2rem; }
+        .effects-control { margin-top: 20px; display: flex; gap: 30px; align-items: flex-start; justify-content: center; }
+        .effect-slider-group { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+        .effect-slider-group label { color: #ffaa00; font-size: 0.85rem; font-weight: bold; }
+        .effect-slider-group input { width: 150px; }
+        .slider-value { color: #ffaa00; font-weight: bold; font-size: 1rem; }
         button.active { background: #00ffcc; color: #000; border-color: #00ffcc; }
         .instructions-btn { background: rgba(255, 255, 255, 0.05); border: 1px solid #666; color: #aaa; padding: 5px 15px; font-size: 0.8rem; border-radius: 15px; cursor: pointer; margin-top: 10px; }
         .instructions-btn:hover { background: rgba(255, 255, 255, 0.1); color: #fff; }
@@ -90,6 +95,19 @@
         <input type="range" id="tempo-slider" min="60" max="200" value="120" oninput="setTempo(this.value)">
     </div>
 
+    <div class="effects-control">
+        <div class="effect-slider-group">
+            <label for="reverb-slider">Reverb Amount</label>
+            <div class="slider-value" id="reverb-value">50%</div>
+            <input type="range" id="reverb-slider" min="0" max="100" value="50" oninput="setReverbAmount(this.value)">
+        </div>
+        <div class="effect-slider-group">
+            <label for="distortion-slider">Distortion Amount</label>
+            <div class="slider-value" id="distortion-value">50%</div>
+            <input type="range" id="distortion-slider" min="0" max="100" value="50" oninput="setDistortionAmount(this.value)">
+        </div>
+    </div>
+
     <script>
         // 1. Define your library (Make sure these filenames match your folder)
 const kickLibrary = [
@@ -134,6 +152,8 @@ let distortionNode = null;
 let convolverNode = null;
 let reverbEnabled = false;
 let distortionEnabled = false;
+let reverbAmount = 50;
+let distortionAmount = 50;
 
 function shuffleKick() {
     const drum = document.getElementById('drum-icon');
@@ -193,14 +213,14 @@ function playWithEffects(audioFile) {
         gainNode = audioContext.createGain();
         distortionNode = audioContext.createWaveShaper();
         convolverNode = audioContext.createConvolver();
-        
-        // Setup distortion
-        distortionNode.curve = makeDistortionCurve(400);
-        distortionNode.oversample = '4x';
-        
-        // Create impulse response for reverb
-        createReverbImpulse();
     }
+    
+    // Update distortion curve with current amount
+    distortionNode.curve = makeDistortionCurve(distortionAmount * 10);
+    distortionNode.oversample = '4x';
+    
+    // Update reverb impulse with current amount
+    createReverbImpulse(reverbAmount / 100);
     
     // Fetch and decode audio
     fetch(audioFile)
@@ -214,20 +234,36 @@ function playWithEffects(audioFile) {
             sourceNode = audioContext.createBufferSource();
             sourceNode.buffer = audioBuffer;
             
-            // Connect nodes based on enabled effects
-            let currentNode = sourceNode;
+            // Create dry/wet paths
+            const dryGain = audioContext.createGain();
+            const wetGain = audioContext.createGain();
+            
+            // Connect dry path (direct)
+            sourceNode.connect(dryGain);
+            dryGain.connect(gainNode);
+            
+            // Connect wet path (with effects)
+            let wetNode = sourceNode;
             
             if (distortionEnabled) {
-                currentNode.connect(distortionNode);
-                currentNode = distortionNode;
+                wetNode.connect(distortionNode);
+                wetNode = distortionNode;
             }
             
             if (reverbEnabled) {
-                currentNode.connect(convolverNode);
-                currentNode = convolverNode;
+                wetNode.connect(convolverNode);
+                wetNode = convolverNode;
             }
             
-            currentNode.connect(gainNode);
+            wetNode.connect(wetGain);
+            wetGain.connect(gainNode);
+            
+            // Set dry/wet mix based on effects
+            const totalEffects = (reverbEnabled ? reverbAmount : 0) + (distortionEnabled ? distortionAmount : 0);
+            const wetMix = Math.min(totalEffects / 100, 1);
+            dryGain.gain.value = 1 - (wetMix * 0.5);
+            wetGain.gain.value = wetMix * 0.7;
+            
             gainNode.connect(audioContext.destination);
             
             sourceNode.start(0);
@@ -251,20 +287,31 @@ function makeDistortionCurve(amount) {
     return curve;
 }
 
-function createReverbImpulse() {
+function createReverbImpulse(intensity = 0.5) {
     const sampleRate = audioContext.sampleRate;
-    const length = sampleRate * 2; // 2 second reverb
+    const length = sampleRate * (1 + intensity * 2); // 1-3 second reverb based on intensity
     const impulse = audioContext.createBuffer(2, length, sampleRate);
     const impulseL = impulse.getChannelData(0);
     const impulseR = impulse.getChannelData(1);
     
     for (let i = 0; i < length; i++) {
         const n = length - i;
-        impulseL[i] = (Math.random() * 2 - 1) * Math.pow(n / length, 2);
-        impulseR[i] = (Math.random() * 2 - 1) * Math.pow(n / length, 2);
+        const decay = Math.pow(n / length, 2 + (1 - intensity));
+        impulseL[i] = (Math.random() * 2 - 1) * decay * intensity;
+        impulseR[i] = (Math.random() * 2 - 1) * decay * intensity;
     }
     
     convolverNode.buffer = impulse;
+}
+
+function setReverbAmount(value) {
+    reverbAmount = parseInt(value);
+    document.getElementById('reverb-value').innerText = reverbAmount + '%';
+}
+
+function setDistortionAmount(value) {
+    distortionAmount = parseInt(value);
+    document.getElementById('distortion-value').innerText = distortionAmount + '%';
 }
 
 function toggleReverb() {
