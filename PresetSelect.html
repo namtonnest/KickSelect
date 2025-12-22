@@ -7,8 +7,12 @@
     <style>
         body { background: #121212; color: #fff; font-family: sans-serif; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; margin: 0; }
         #status { color: #00ffcc; margin-bottom: 20px; font-weight: bold; text-transform: uppercase; letter-spacing: 2px; }
+        .icon-container { position: relative; width: 200px; height: 200px; margin-bottom: 20px; }
         #synth-icon { width: 200px; height: 200px; border: 4px solid #00ffcc; border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow: 0 0 20px #00ffcc; transition: transform 0.1s; cursor: pointer; }
         #synth-icon.pulse { transform: scale(1.1); background: rgba(0, 255, 204, 0.2); }
+        #voice-icon { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 80px; height: 80px; border: 3px solid #ff00ff; border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow: 0 0 15px #ff00ff; cursor: pointer; background: rgba(255, 0, 255, 0.1); transition: all 0.3s; }
+        #voice-icon:hover { background: rgba(255, 0, 255, 0.3); transform: translate(-50%, -50%) scale(1.05); }
+        #voice-icon.active { background: rgba(255, 0, 255, 0.3); box-shadow: 0 0 25px #ff00ff; }
         h1 { margin-top: 30px; font-size: 1.2rem; color: #aaa; }
         .preset-info { margin-top: 20px; text-align: center; }
         .preset-info .synth-name { color: #ff00ff; font-size: 0.9rem; font-weight: bold; }
@@ -22,21 +26,33 @@
         .favorite-item { padding: 8px; margin: 5px 0; background: rgba(0, 255, 204, 0.1); border-radius: 5px; display: flex; justify-content: space-between; align-items: center; font-size: 0.9rem; }
         .favorite-item button { padding: 5px 10px; font-size: 0.8rem; }
         .empty-favorites { color: #666; font-style: italic; text-align: center; padding: 20px; }
+        .instructions-btn { background: rgba(255, 255, 255, 0.05); border: 1px solid #666; color: #aaa; padding: 5px 15px; font-size: 0.8rem; border-radius: 15px; cursor: pointer; margin-top: 10px; }
+        .instructions-btn:hover { background: rgba(255, 255, 255, 0.1); color: #fff; }
     </style>
 </head>
 <body>
 
     <div id="status">Voice Standby</div>
     
-    <div id="synth-icon" onclick="playCurrentPreset()">
-        <svg width="100" height="100" viewBox="0 0 24 24" fill="none" stroke="#00ffcc" stroke-width="1.5">
-            <rect x="2" y="8" width="20" height="12" rx="2"></rect>
-            <path d="M6 8V6a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v2"></path>
-            <circle cx="7" cy="13" r="1.5"></circle>
-            <circle cx="12" cy="13" r="1.5"></circle>
-            <circle cx="17" cy="13" r="1.5"></circle>
-            <line x1="2" y1="16" x2="22" y2="16"></line>
-        </svg>
+    <div class="icon-container">
+        <div id="synth-icon" onclick="playCurrentPreset()">
+            <svg width="100" height="100" viewBox="0 0 24 24" fill="none" stroke="#00ffcc" stroke-width="1.5">
+                <rect x="2" y="8" width="20" height="12" rx="2"></rect>
+                <path d="M6 8V6a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v2"></path>
+                <circle cx="7" cy="13" r="1.5"></circle>
+                <circle cx="12" cy="13" r="1.5"></circle>
+                <circle cx="17" cy="13" r="1.5"></circle>
+                <line x1="2" y1="16" x2="22" y2="16"></line>
+            </svg>
+        </div>
+        <div id="voice-icon" onclick="toggleVoice()">
+            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#ff00ff" stroke-width="2">
+                <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path>
+                <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
+                <line x1="12" y1="19" x2="12" y2="23"></line>
+                <line x1="8" y1="23" x2="16" y2="23"></line>
+            </svg>
+        </div>
     </div>
 
     <h1 id="preset-name">READY TO SHUFFLE</h1>
@@ -44,8 +60,9 @@
         <div class="synth-name" id="synth-name"></div>
     </div>
 
+    <button class="instructions-btn" onclick="showVoiceInstructions()">Voice Commands</button>
+
     <div class="controls">
-        <button id="voice-btn" onclick="toggleVoice()">Start Voice Control</button>
         <button onclick="shufflePreset()">Shuffle Preset</button>
         <button onclick="addToFavorites()">Add to Favorites</button>
         <button onclick="downloadPreset()">Download Preset</button>
@@ -173,6 +190,16 @@ function loadFavorite(index) {
     playCurrentPreset();
 }
 
+function showVoiceInstructions() {
+    alert('Voice Commands:\n\n' +
+        '• "Shuffle" or "Next" or "New preset" or "Random" - Get a new preset\n' +
+        '• "Play" or "Replay" or "Again" - Play current preset\n' +
+        '• "Favorite" or "Save" or "Add" - Add to favorites\n' +
+        '• "Download" or "Save file" - Download preset info\n' +
+        '• "Email" or "Send" - Email preset info\n\n' +
+        'Click the microphone button to start/stop voice control.');
+}
+
 function renderFavorites() {
     const favList = document.getElementById('favorites-list');
     
@@ -249,7 +276,7 @@ function sendEmail() {
 }
 
 function toggleVoice() {
-    const btn = document.getElementById('voice-btn');
+    const icon = document.getElementById('voice-icon');
     const status = document.getElementById('status');
     
     if (isVoiceActive) {
@@ -258,8 +285,7 @@ function toggleVoice() {
             recognition.stop();
         }
         isVoiceActive = false;
-        btn.innerText = 'Start Voice Control';
-        btn.classList.remove('active');
+        icon.classList.remove('active');
         status.innerText = 'Voice Stopped';
     } else {
         // Check for microphone permissions first
@@ -268,7 +294,7 @@ function toggleVoice() {
                 .then(function(stream) {
                     // Permission granted, stop the stream and start speech recognition
                     stream.getTracks().forEach(track => track.stop());
-                    startVoiceRecognition(btn, status);
+                    startVoiceRecognition(icon, status);
                 })
                 .catch(function(err) {
                     alert('Microphone permission denied. Please allow microphone access in your browser settings and try again.');
@@ -276,12 +302,12 @@ function toggleVoice() {
                 });
         } else {
             // Fallback for older browsers
-            startVoiceRecognition(btn, status);
+            startVoiceRecognition(icon, status);
         }
     }
 }
 
-function startVoiceRecognition(btn, status) {
+function startVoiceRecognition(icon, status) {
     // Start voice recognition
     if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
         alert('Voice recognition not supported in this browser. Please use Chrome or Edge.');
@@ -296,8 +322,7 @@ function startVoiceRecognition(btn, status) {
     
     recognition.onstart = function() {
         isVoiceActive = true;
-        btn.innerText = 'Stop Voice Control';
-        btn.classList.add('active');
+        icon.classList.add('active');
         status.innerText = 'Listening...';
     };
     
