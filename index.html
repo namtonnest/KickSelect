@@ -224,55 +224,54 @@ function startVoiceRecognition(btn, status) {
         btn.classList.add('active');
         status.innerText = 'Listening...';
     };
+    
+    recognition.onresult = function(event) {
+        const transcript = event.results[event.results.length - 1][0].transcript.toLowerCase().trim();
+        status.innerText = 'Heard: ' + transcript;
         
-        recognition.onresult = function(event) {
-            const transcript = event.results[event.results.length - 1][0].transcript.toLowerCase().trim();
-            status.innerText = 'Heard: ' + transcript;
-            
-            // Voice commands
-            if (transcript.includes('shuffle') || transcript.includes('next') || transcript.includes('new kick')) {
-                shuffleKick();
-            } else if (transcript.includes('play') || transcript.includes('replay') || transcript.includes('again')) {
-                playCurrentKick();
-            } else if (transcript.includes('start loop') || transcript.includes('loop')) {
-                if (!isLooping) toggleLoop();
-            } else if (transcript.includes('stop loop') || transcript.includes('stop looping')) {
-                if (isLooping) toggleLoop();
-            } else if (transcript.includes('email') || transcript.includes('send')) {
-                sendEmail();
-            } else if (transcript.includes('tempo') || transcript.includes('speed') || transcript.includes('bpm')) {
-                // Extract number from command
-                const numbers = transcript.match(/\d+/);
-                if (numbers) {
-                    const newBpm = parseInt(numbers[0]);
-                    if (newBpm >= 60 && newBpm <= 200) {
-                        document.getElementById('tempo-slider').value = newBpm;
-                        setTempo(newBpm);
-                    }
+        // Voice commands
+        if (transcript.includes('shuffle') || transcript.includes('next') || transcript.includes('new kick')) {
+            shuffleKick();
+        } else if (transcript.includes('play') || transcript.includes('replay') || transcript.includes('again')) {
+            playCurrentKick();
+        } else if (transcript.includes('start loop') || transcript.includes('loop')) {
+            if (!isLooping) toggleLoop();
+        } else if (transcript.includes('stop loop') || transcript.includes('stop looping')) {
+            if (isLooping) toggleLoop();
+        } else if (transcript.includes('email') || transcript.includes('send')) {
+            sendEmail();
+        } else if (transcript.includes('tempo') || transcript.includes('speed') || transcript.includes('bpm')) {
+            // Extract number from command
+            const numbers = transcript.match(/\d+/);
+            if (numbers) {
+                const newBpm = parseInt(numbers[0]);
+                if (newBpm >= 60 && newBpm <= 200) {
+                    document.getElementById('tempo-slider').value = newBpm;
+                    setTempo(newBpm);
                 }
             }
-            
-            setTimeout(() => {
-                if (isVoiceActive && !isLooping) status.innerText = 'Listening...';
-            }, 2000);
-        };
+        }
         
-        recognition.onerror = function(event) {
-            console.error('Speech recognition error:', event.error);
-            status.innerText = 'Error: ' + event.error;
-            setTimeout(() => {
-                if (isVoiceActive) status.innerText = 'Listening...';
-            }, 2000);
-        };
-        
-        recognition.onend = function() {
-            if (isVoiceActive) {
-                recognition.start(); // Restart if still active
-            }
-        };
-        
-        recognition.start();
-    }
+        setTimeout(() => {
+            if (isVoiceActive && !isLooping) status.innerText = 'Listening...';
+        }, 2000);
+    };
+    
+    recognition.onerror = function(event) {
+        console.error('Speech recognition error:', event.error);
+        status.innerText = 'Error: ' + event.error;
+        setTimeout(() => {
+            if (isVoiceActive) status.innerText = 'Listening...';
+        }, 2000);
+    };
+    
+    recognition.onend = function() {
+        if (isVoiceActive) {
+            recognition.start(); // Restart if still active
+        }
+    };
+    
+    recognition.start();
 }
 
 // Initialize with random kick on page load
