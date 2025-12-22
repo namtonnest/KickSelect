@@ -237,7 +237,13 @@ function sendEmail() {
     document.body.removeChild(link);
     
     const status = document.getElementById('status');
-    status.innerText = 'Email Opened';
+    status.innerText = 'Check your email app';
+    
+    // Also show alert with information
+    setTimeout(() => {
+        alert('If no email app opened, you may need to:\n\n1. Set a default email client in Windows Settings\n2. Or manually copy this info:\n\nSynth: ' + currentPreset.synth + '\nPreset: ' + currentPreset.preset);
+    }, 500);
+    
     setTimeout(() => {
         if (!isVoiceActive) status.innerText = 'Voice Standby';
     }, 2000);
