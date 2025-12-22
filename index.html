@@ -44,6 +44,7 @@
         <button id="loop-btn" onclick="toggleLoop()">Start Loop</button>
         <button id="voice-btn" onclick="toggleVoice()">Start Voice Control</button>
         <button onclick="shuffleKick()">Shuffle Kick</button>
+        <button onclick="downloadKick()">Download Kick</button>
         <button onclick="sendEmail()">Email This Kick</button>
     </div>
 
@@ -190,6 +191,27 @@ function setTempo(value) {
     }
 }
 
+function downloadKick() {
+    if (!currentKick) {
+        alert('Please shuffle a kick first!');
+        return;
+    }
+    
+    // Create a temporary link to download the audio file
+    const link = document.createElement('a');
+    link.href = currentKick;
+    link.download = currentKick;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    
+    const status = document.getElementById('status');
+    status.innerText = 'Download Started';
+    setTimeout(() => {
+        if (!isLooping) status.innerText = isVoiceActive ? 'Listening...' : 'Voice Standby';
+    }, 2000);
+}
+
 function sendEmail() {
     if (!currentKick) {
         alert('Please shuffle a kick first!');
@@ -204,7 +226,9 @@ function sendEmail() {
     // Create temporary link to open email without changing page
     const link = document.createElement('a');
     link.href = `mailto:?subject=${subject}&body=${body}`;
+    document.body.appendChild(link);
     link.click();
+    document.body.removeChild(link);
     
     const status = document.getElementById('status');
     status.innerText = 'Email Opened';
@@ -279,6 +303,8 @@ function startVoiceRecognition(btn, status) {
             if (!isLooping) toggleLoop();
         } else if (transcript.includes('stop loop') || transcript.includes('stop looping')) {
             if (isLooping) toggleLoop();
+        } else if (transcript.includes('download') || transcript.includes('save file')) {
+            downloadKick();
         } else if (transcript.includes('email') || transcript.includes('send')) {
             sendEmail();
         } else if (transcript.includes('tempo') || transcript.includes('speed') || transcript.includes('bpm')) {

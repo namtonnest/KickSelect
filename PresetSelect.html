@@ -48,6 +48,7 @@
         <button id="voice-btn" onclick="toggleVoice()">Start Voice Control</button>
         <button onclick="shufflePreset()">Shuffle Preset</button>
         <button onclick="addToFavorites()">Add to Favorites</button>
+        <button onclick="downloadPreset()">Download Preset</button>
         <button onclick="sendEmail()">Email This Preset</button>
     </div>
 
@@ -191,6 +192,32 @@ function renderFavorites() {
     `).join('');
 }
 
+function downloadPreset() {
+    if (!currentPreset) {
+        alert('Please shuffle a preset first!');
+        return;
+    }
+    
+    // Create a text file with preset information
+    const content = `VST Preset Information\n\nSynth: ${currentPreset.synth}\nPreset: ${currentPreset.preset}\n\nExported on: ${new Date().toLocaleString()}`;
+    const blob = new Blob([content], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `${currentPreset.synth}_${currentPreset.preset.replace(/\s+/g, '_')}.txt`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    
+    const status = document.getElementById('status');
+    status.innerText = 'Download Started';
+    setTimeout(() => {
+        if (!isVoiceActive) status.innerText = 'Voice Standby';
+    }, 2000);
+}
+
 function sendEmail() {
     if (!currentPreset) {
         alert('Please shuffle a preset first!');
@@ -205,7 +232,9 @@ function sendEmail() {
     // Create temporary link to open email without changing page
     const link = document.createElement('a');
     link.href = `mailto:?subject=${subject}&body=${body}`;
+    document.body.appendChild(link);
     link.click();
+    document.body.removeChild(link);
     
     const status = document.getElementById('status');
     status.innerText = 'Email Opened';
@@ -278,6 +307,8 @@ function startVoiceRecognition(btn, status) {
             playCurrentPreset();
         } else if (transcript.includes('favorite') || transcript.includes('save') || transcript.includes('add')) {
             addToFavorites();
+        } else if (transcript.includes('download') || transcript.includes('save file')) {
+            downloadPreset();
         } else if (transcript.includes('email') || transcript.includes('send')) {
             sendEmail();
         }
