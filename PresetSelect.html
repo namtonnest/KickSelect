@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Preset Shuffler</title>
+    <style>
+        body { background: #121212; color: #fff; font-family: sans-serif; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; margin: 0; }
+        #status { color: #00ffcc; margin-bottom: 20px; font-weight: bold; text-transform: uppercase; letter-spacing: 2px; }
+        #synth-icon { width: 200px; height: 200px; border: 4px solid #00ffcc; border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow: 0 0 20px #00ffcc; transition: transform 0.1s; cursor: pointer; }
+        #synth-icon.pulse { transform: scale(1.1); background: rgba(0, 255, 204, 0.2); }
+        h1 { margin-top: 30px; font-size: 1.2rem; color: #aaa; }
+        .preset-info { margin-top: 20px; text-align: center; }
+        .preset-info .synth-name { color: #ff00ff; font-size: 0.9rem; font-weight: bold; }
+        .controls { margin-top: 40px; display: flex; gap: 20px; flex-wrap: wrap; justify-content: center; }
+        button { background: transparent; border: 1px solid #fff; color: #fff; padding: 10px 20px; border-radius: 20px; cursor: pointer; transition: all 0.3s; }
+        button:hover { background: #fff; color: #000; }
+        button.active { background: #00ffcc; color: #000; border-color: #00ffcc; }
+        .favorites { margin-top: 30px; max-width: 600px; }
+        .favorites h3 { color: #ff00ff; font-size: 1rem; margin-bottom: 10px; }
+        .favorites-list { background: rgba(255, 255, 255, 0.05); border-radius: 10px; padding: 15px; max-height: 150px; overflow-y: auto; }
+        .favorite-item { padding: 8px; margin: 5px 0; background: rgba(0, 255, 204, 0.1); border-radius: 5px; display: flex; justify-content: space-between; align-items: center; font-size: 0.9rem; }
+        .favorite-item button { padding: 5px 10px; font-size: 0.8rem; }
+        .empty-favorites { color: #666; font-style: italic; text-align: center; padding: 20px; }
+    </style>
+</head>
+<body>
+
+    <div id="status">Voice Standby</div>
+    
+    <div id="synth-icon" onclick="playCurrentPreset()">
+        <svg width="100" height="100" viewBox="0 0 24 24" fill="none" stroke="#00ffcc" stroke-width="1.5">
+            <rect x="2" y="8" width="20" height="12" rx="2"></rect>
+            <path d="M6 8V6a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v2"></path>
+            <circle cx="7" cy="13" r="1.5"></circle>
+            <circle cx="12" cy="13" r="1.5"></circle>
+            <circle cx="17" cy="13" r="1.5"></circle>
+            <line x1="2" y1="16" x2="22" y2="16"></line>
+        </svg>
+    </div>
+
+    <h1 id="preset-name">READY TO SHUFFLE</h1>
+    <div class="preset-info">
+        <div class="synth-name" id="synth-name"></div>
+    </div>
+
+    <div class="controls">
+        <button id="voice-btn" onclick="toggleVoice()">Start Voice Control</button>
+        <button onclick="shufflePreset()">Shuffle Preset</button>
+        <button onclick="addToFavorites()">Add to Favorites</button>
+        <button onclick="sendEmail()">Email This Preset</button>
+    </div>
+
+    <div class="favorites">
+        <h3>⭐ Favorite Presets</h3>
+        <div class="favorites-list" id="favorites-list">
+            <div class="empty-favorites">No favorites yet. Add some presets!</div>
+        </div>
+    </div>
+
+    <script>
+        // Define your VST synths and their presets
+const presetLibrary = [
+    // Serum Presets
+    { synth: "Serum", preset: "Lush Pad" },
+    { synth: "Serum", preset: "Analog Bass" },
+    { synth: "Serum", preset: "Bright Lead" },
+    { synth: "Serum", preset: "Fat Wobble" },
+    { synth: "Serum", preset: "Atmospheric Swell" },
+    
+    // Massive X Presets
+    { synth: "Massive X", preset: "Deep Sub" },
+    { synth: "Massive X", preset: "Pluck Synth" },
+    { synth: "Massive X", preset: "Noise Sweep" },
+    { synth: "Massive X", preset: "Reese Bass" },
+    { synth: "Massive X", preset: "Crystal Keys" },
+    
+    // Vital Presets
+    { synth: "Vital", preset: "Super Saw" },
+    { synth: "Vital", preset: "FM Bell" },
+    { synth: "Vital", preset: "Wavetable Lead" },
+    { synth: "Vital", preset: "Vocal Pad" },
+    { synth: "Vital", preset: "Sub Bass" },
+    
+    // Omnisphere Presets
+    { synth: "Omnisphere", preset: "Cinematic Strings" },
+    { synth: "Omnisphere", preset: "Ethereal Choir" },
+    { synth: "Omnisphere", preset: "Dystopian Texture" },
+    { synth: "Omnisphere", preset: "Vintage Keys" },
+    { synth: "Omnisphere", preset: "Organic Arp" }
+];
+
+let currentPreset = null;
+let favorites = JSON.parse(localStorage.getItem('favorites')) || [];
+let recognition = null;
+let isVoiceActive = false;
+
+function shufflePreset() {
+    const icon = document.getElementById('synth-icon');
+    const presetText = document.getElementById('preset-name');
+    const synthText = document.getElementById('synth-name');
+    
+    // Select random preset
+    currentPreset = presetLibrary[Math.floor(Math.random() * presetLibrary.length)];
+    presetText.innerText = currentPreset.preset.toUpperCase();
+    synthText.innerText = currentPreset.synth;
+
+    // Visual pulse
+    icon.classList.add('pulse');
+    setTimeout(() => icon.classList.remove('pulse'), 200);
+    
+    // Update status
+    const status = document.getElementById('status');
+    if (!isVoiceActive) {
+        status.innerText = 'Preset Loaded';
+        setTimeout(() => {
+            if (!isVoiceActive) status.innerText = 'Voice Standby';
+        }, 2000);
+    }
+}
+
+function playCurrentPreset() {
+    if (!currentPreset) {
+        shufflePreset();
+        return;
+    }
+    
+    const icon = document.getElementById('synth-icon');
+    
+    // Visual pulse (simulating preset being "played" on your DAW)
+    icon.classList.add('pulse');
+    setTimeout(() => icon.classList.remove('pulse'), 200);
+}
+
+function addToFavorites() {
+    if (!currentPreset) {
+        alert('Please shuffle a preset first!');
+        return;
+    }
+    
+    // Check if already in favorites
+    const exists = favorites.some(fav => 
+        fav.synth === currentPreset.synth && fav.preset === currentPreset.preset
+    );
+    
+    if (exists) {
+        alert('This preset is already in your favorites!');
+        return;
+    }
+    
+    favorites.push({ ...currentPreset });
+    localStorage.setItem('favorites', JSON.stringify(favorites));
+    renderFavorites();
+    
+    const status = document.getElementById('status');
+    status.innerText = 'Added to Favorites!';
+    setTimeout(() => {
+        if (!isVoiceActive) status.innerText = 'Voice Standby';
+    }, 2000);
+}
+
+function removeFromFavorites(index) {
+    favorites.splice(index, 1);
+    localStorage.setItem('favorites', JSON.stringify(favorites));
+    renderFavorites();
+}
+
+function loadFavorite(index) {
+    currentPreset = favorites[index];
+    document.getElementById('preset-name').innerText = currentPreset.preset.toUpperCase();
+    document.getElementById('synth-name').innerText = currentPreset.synth;
+    playCurrentPreset();
+}
+
+function renderFavorites() {
+    const favList = document.getElementById('favorites-list');
+    
+    if (favorites.length === 0) {
+        favList.innerHTML = '<div class="empty-favorites">No favorites yet. Add some presets!</div>';
+        return;
+    }
+    
+    favList.innerHTML = favorites.map((fav, index) => `
+        <div class="favorite-item">
+            <span><strong>${fav.preset}</strong> - ${fav.synth}</span>
+            <div>
+                <button onclick="loadFavorite(${index})">Load</button>
+                <button onclick="removeFromFavorites(${index})">Remove</button>
+            </div>
+        </div>
+    `).join('');
+}
+
+function sendEmail() {
+    if (!currentPreset) {
+        alert('Please shuffle a preset first!');
+        return;
+    }
+    
+    const subject = encodeURIComponent('Check out this VST preset');
+    const body = encodeURIComponent(
+        `Hey!\n\nI found this awesome preset:\n\nSynth: ${currentPreset.synth}\nPreset: ${currentPreset.preset}\n\nYou should try it out!`
+    );
+    
+    // Create temporary link to open email without changing page
+    const link = document.createElement('a');
+    link.href = `mailto:?subject=${subject}&body=${body}`;
+    link.click();
+    
+    const status = document.getElementById('status');
+    status.innerText = 'Email Opened';
+    setTimeout(() => {
+        if (!isVoiceActive) status.innerText = 'Voice Standby';
+    }, 2000);
+}
+
+function toggleVoice() {
+    const btn = document.getElementById('voice-btn');
+    const status = document.getElementById('status');
+    
+    if (isVoiceActive) {
+        // Stop voice recognition
+        if (recognition) {
+            recognition.stop();
+        }
+        isVoiceActive = false;
+        btn.innerText = 'Start Voice Control';
+        btn.classList.remove('active');
+        status.innerText = 'Voice Stopped';
+    } else {
+        // Check for microphone permissions first
+        if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+            navigator.mediaDevices.getUserMedia({ audio: true })
+                .then(function(stream) {
+                    // Permission granted, stop the stream and start speech recognition
+                    stream.getTracks().forEach(track => track.stop());
+                    startVoiceRecognition(btn, status);
+                })
+                .catch(function(err) {
+                    alert('Microphone permission denied. Please allow microphone access in your browser settings and try again.');
+                    console.error('Microphone permission error:', err);
+                });
+        } else {
+            // Fallback for older browsers
+            startVoiceRecognition(btn, status);
+        }
+    }
+}
+
+function startVoiceRecognition(btn, status) {
+    // Start voice recognition
+    if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+        alert('Voice recognition not supported in this browser. Please use Chrome or Edge.');
+        return;
+    }
+    
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    recognition = new SpeechRecognition();
+    recognition.continuous = true;
+    recognition.interimResults = false;
+    recognition.lang = 'en-US';
+    
+    recognition.onstart = function() {
+        isVoiceActive = true;
+        btn.innerText = 'Stop Voice Control';
+        btn.classList.add('active');
+        status.innerText = 'Listening...';
+    };
+    
+    recognition.onresult = function(event) {
+        const transcript = event.results[event.results.length - 1][0].transcript.toLowerCase().trim();
+        status.innerText = 'Heard: ' + transcript;
+        
+        // Voice commands
+        if (transcript.includes('shuffle') || transcript.includes('next') || transcript.includes('new preset') || transcript.includes('random')) {
+            shufflePreset();
+        } else if (transcript.includes('play') || transcript.includes('replay') || transcript.includes('again')) {
+            playCurrentPreset();
+        } else if (transcript.includes('favorite') || transcript.includes('save') || transcript.includes('add')) {
+            addToFavorites();
+        } else if (transcript.includes('email') || transcript.includes('send')) {
+            sendEmail();
+        }
+        
+        setTimeout(() => {
+            if (isVoiceActive) status.innerText = 'Listening...';
+        }, 2000);
+    };
+    
+    recognition.onerror = function(event) {
+        console.error('Speech recognition error:', event.error);
+        status.innerText = 'Error: ' + event.error;
+        setTimeout(() => {
+            if (isVoiceActive) status.innerText = 'Listening...';
+        }, 2000);
+    };
+    
+    recognition.onend = function() {
+        if (isVoiceActive) {
+            recognition.start(); // Restart if still active
+        }
+    };
+    
+    recognition.start();
+}
+
+// Initialize with random preset on page load
+window.onload = function() {
+    currentPreset = presetLibrary[Math.floor(Math.random() * presetLibrary.length)];
+    document.getElementById('preset-name').innerText = currentPreset.preset.toUpperCase();
+    document.getElementById('synth-name').innerText = currentPreset.synth;
+    renderFavorites();
+};
+    </script>
+</body>
+</html>
