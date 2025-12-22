@@ -9,6 +9,12 @@
         #status { color: #00ffcc; margin-bottom: 20px; font-weight: bold; text-transform: uppercase; letter-spacing: 2px; }
         #drum-icon { width: 200px; height: 200px; border: 4px solid #ff00ff; border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow: 0 0 20px #ff00ff; transition: transform 0.1s; cursor: pointer; }
         #drum-icon.pulse { transform: scale(1.1); background: rgba(255, 0, 255, 0.2); }
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.1); background: rgba(255, 0, 255, 0.2); }
+            100% { transform: scale(1); }
+        }
+        #drum-icon.pulsing { animation: pulse 0.1s ease-out; }
         h1 { margin-top: 30px; font-size: 1.2rem; color: #aaa; }
         .controls { margin-top: 40px; display: flex; gap: 20px; }
         button { background: transparent; border: 1px solid #fff; color: #fff; padding: 10px 20px; border-radius: 20px; cursor: pointer; }
@@ -80,6 +86,8 @@ let recognition = null;
 let isVoiceActive = false;
 let audioPlayer = new Audio(); // Reuse single audio object
 audioPlayer.preload = 'auto';
+let lastBeatTime = 0;
+let beatDrift = 0;
 
 function shuffleKick() {
     const drum = document.getElementById('drum-icon');
@@ -96,9 +104,10 @@ function shuffleKick() {
         document.getElementById('status').innerText = 'Tap to play';
     });
 
-    // Visual pulse
-    drum.classList.add('pulse');
-    setTimeout(() => drum.classList.remove('pulse'), 100);
+    // Visual pulse using CSS animation
+    drum.classList.remove('pulsing');
+    void drum.offsetWidth; // Force reflow
+    drum.classList.add('pulsing');
 }
 
 function playCurrentKick() {
@@ -114,9 +123,10 @@ function playCurrentKick() {
         document.getElementById('status').innerText = 'Tap to play';
     });
     
-    // Visual pulse
-    drum.classList.add('pulse');
-    setTimeout(() => drum.classList.remove('pulse'), 100);
+    // Visual pulse using CSS animation
+    drum.classList.remove('pulsing');
+    void drum.offsetWidth; // Force reflow
+    drum.classList.add('pulsing');
 }
 
 function toggleLoop() {
@@ -131,12 +141,23 @@ function toggleLoop() {
         btn.classList.remove('active');
         status.innerText = 'Loop Stopped';
     } else {
-        // Start loop
+        // Start loop with drift compensation
         isLooping = true;
+        lastBeatTime = Date.now();
+        beatDrift = 0;
+        
         playCurrentKick();
         
-        const intervalTime = (60 / bpm) * 1000; // Convert BPM to milliseconds
-        loopInterval = setInterval(playCurrentKick, intervalTime);
+        const intervalTime = (60 / bpm) * 1000;
+        
+        loopInterval = setInterval(() => {
+            const now = Date.now();
+            const expectedTime = lastBeatTime + intervalTime;
+            beatDrift = now - expectedTime;
+            
+            playCurrentKick();
+            lastBeatTime = expectedTime; // Use expected time to prevent drift
+        }, intervalTime);
         
         btn.innerText = 'Stop Loop';
         btn.classList.add('active');
@@ -148,11 +169,23 @@ function setTempo(value) {
     bpm = parseInt(value);
     document.getElementById('tempo-display').innerText = bpm;
     
-    // If currently looping, restart with new tempo
+    // If currently looping, restart with new tempo and reset drift
     if (isLooping) {
         clearInterval(loopInterval);
+        lastBeatTime = Date.now();
+        beatDrift = 0;
+        
         const intervalTime = (60 / bpm) * 1000;
-        loopInterval = setInterval(playCurrentKick, intervalTime);
+        
+        loopInterval = setInterval(() => {
+            const now = Date.now();
+            const expectedTime = lastBeatTime + intervalTime;
+            beatDrift = now - expectedTime;
+            
+            playCurrentKick();
+            lastBeatTime = expectedTime;
+        }, intervalTime);
+        
         document.getElementById('status').innerText = 'Looping at ' + bpm + ' BPM';
     }
 }
