@@ -98,7 +98,9 @@ function shuffleKick() {
     fileText.innerText = currentKick.toUpperCase();
 
     // Play the actual audio file using reused player
+    audioPlayer.pause();
     audioPlayer.src = currentKick;
+    audioPlayer.load();
     audioPlayer.play().catch(err => {
         console.error('Audio playback failed:', err);
         document.getElementById('status').innerText = 'Tap to play';
@@ -117,7 +119,12 @@ function playCurrentKick() {
     }
     
     const drum = document.getElementById('drum-icon');
-    audioPlayer.currentTime = 0; // Reset to start
+    
+    // If audio is playing, stop and restart; otherwise just play
+    if (!audioPlayer.paused) {
+        audioPlayer.pause();
+    }
+    audioPlayer.currentTime = 0;
     audioPlayer.play().catch(err => {
         console.error('Audio playback failed:', err);
         document.getElementById('status').innerText = 'Tap to play';
