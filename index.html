@@ -218,37 +218,28 @@ function sendEmail() {
         return;
     }
     
-    const emailText = `Subject: Check out this kick sample\n\nHey!\n\nI found this awesome kick sample:\n\n${currentKick}\n\nFrom the Studio Brootle House Kick Sample Pack.\n\nLet me know what you think!`;
+    // Ask for user's email
+    const userEmail = prompt('Enter your email address:');
     
-    // Try to copy to clipboard
-    if (navigator.clipboard && navigator.clipboard.writeText) {
-        navigator.clipboard.writeText(emailText)
-            .then(() => {
-                const status = document.getElementById('status');
-                status.innerText = 'Email text copied!';
-                alert('Email content copied to clipboard!\n\nYou can now paste it into your email app.');
-                setTimeout(() => {
-                    if (!isLooping) status.innerText = isVoiceActive ? 'Listening...' : 'Voice Standby';
-                }, 2000);
-            })
-            .catch(err => {
-                // Fallback: show the text in an alert
-                alert('Copy this email content:\n\n' + emailText);
-                const status = document.getElementById('status');
-                status.innerText = 'See alert for email text';
-                setTimeout(() => {
-                    if (!isLooping) status.innerText = isVoiceActive ? 'Listening...' : 'Voice Standby';
-                }, 2000);
-            });
-    } else {
-        // Fallback for browsers without clipboard API
-        alert('Copy this email content:\n\n' + emailText);
-        const status = document.getElementById('status');
-        status.innerText = 'See alert for email text';
-        setTimeout(() => {
-            if (!isLooping) status.innerText = isVoiceActive ? 'Listening...' : 'Voice Standby';
-        }, 2000);
+    if (!userEmail || !userEmail.includes('@')) {
+        alert('Please enter a valid email address.');
+        return;
     }
+    
+    const subject = encodeURIComponent('Kick Sample: ' + currentKick);
+    const body = encodeURIComponent(
+        `Hey!\n\nI found this awesome kick sample:\n\n${currentKick}\n\nFrom the Studio Brootle House Kick Sample Pack.\n\nLet me know what you think!`
+    );
+    
+    // Create mailto link to user's own email
+    window.location.href = `mailto:${userEmail}?subject=${subject}&body=${body}`;
+    
+    const status = document.getElementById('status');
+    status.innerText = 'Opening email...';
+    
+    setTimeout(() => {
+        if (!isLooping) status.innerText = isVoiceActive ? 'Listening...' : 'Voice Standby';
+    }, 2000);
 }
 
 function toggleVoice() {
