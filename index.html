@@ -97,11 +97,9 @@ function shuffleKick() {
     currentKick = kickLibrary[Math.floor(Math.random() * kickLibrary.length)];
     fileText.innerText = currentKick.toUpperCase();
 
-    // Play the actual audio file using reused player
-    audioPlayer.pause();
-    audioPlayer.src = currentKick;
-    audioPlayer.load();
-    audioPlayer.play().catch(err => {
+    // Play the actual audio file
+    const audio = new Audio(currentKick);
+    audio.play().catch(err => {
         console.error('Audio playback failed:', err);
         document.getElementById('status').innerText = 'Tap to play';
     });
@@ -119,13 +117,8 @@ function playCurrentKick() {
     }
     
     const drum = document.getElementById('drum-icon');
-    
-    // If audio is playing, stop and restart; otherwise just play
-    if (!audioPlayer.paused) {
-        audioPlayer.pause();
-    }
-    audioPlayer.currentTime = 0;
-    audioPlayer.play().catch(err => {
+    const audio = new Audio(currentKick);
+    audio.play().catch(err => {
         console.error('Audio playback failed:', err);
         document.getElementById('status').innerText = 'Tap to play';
     });
