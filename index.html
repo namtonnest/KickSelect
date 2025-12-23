@@ -294,7 +294,7 @@ function playWithEffects(audioFile) {
     // Update distortion curve with current amount
     const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
     distortionNode.curve = makeDistortionCurve(distortionAmount * 10);
-    distortionNode.oversample = isMobile ? '2x' : '4x'; // Reduce quality on mobile
+    distortionNode.oversample = isMobile ? 'none' : '4x'; // No oversampling on mobile for performance
     
     // Update reverb impulse with current amount
     createReverbImpulse(reverbAmount / 100);
@@ -354,9 +354,9 @@ function playWithEffects(audioFile) {
 
 function makeDistortionCurve(amount) {
     const k = typeof amount === 'number' ? amount : 50;
-    // Reduce samples on mobile for better performance
+    // Reduce samples significantly on mobile for better performance
     const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-    const n_samples = isMobile ? 22050 : 44100;
+    const n_samples = isMobile ? 8192 : 44100; // Much lower sample count on mobile
     const curve = new Float32Array(n_samples);
     const deg = Math.PI / 180;
     
@@ -369,9 +369,9 @@ function makeDistortionCurve(amount) {
 
 function createReverbImpulse(intensity = 0.5) {
     const sampleRate = audioContext.sampleRate;
-    // Reduce reverb length on mobile for better performance
+    // Reduce reverb length significantly on mobile for better performance
     const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-    const reverbLength = isMobile ? (0.5 + intensity) : (1 + intensity * 2);
+    const reverbLength = isMobile ? (0.3 + intensity * 0.4) : (1 + intensity * 2); // Much shorter on mobile
     const length = sampleRate * reverbLength;
     const impulse = audioContext.createBuffer(2, length, sampleRate);
     const impulseL = impulse.getChannelData(0);
