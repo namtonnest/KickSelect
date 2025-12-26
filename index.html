@@ -5,10 +5,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Kick Shuffler Prototype</title>
     <style>
-        body { background: #121212; color: #fff; font-family: sans-serif; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; margin: 0; position: relative; }
-        .volume-container { position: fixed; right: 30px; top: 50%; transform: translateY(-50%); display: flex; flex-direction: column; align-items: center; gap: 15px; z-index: 1000; }
+        * { -webkit-tap-highlight-color: transparent; }
+        body { background: #121212; color: #fff; font-family: sans-serif; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; margin: 0; position: relative; overflow-x: hidden; -webkit-font-smoothing: antialiased; }
+        .volume-container { position: fixed; right: 30px; top: 50%; transform: translate3d(0,-50%,0); display: flex; flex-direction: column; align-items: center; gap: 15px; z-index: 1000; will-change: transform; }
         .volume-slider-wrapper { height: 300px; display: flex; align-items: center; }
-        #volume-slider { -webkit-appearance: slider-vertical; writing-mode: bt-lr; width: 8px; height: 300px; background: rgba(255, 0, 255, 0.2); border-radius: 10px; outline: none; cursor: pointer; }
+        #volume-slider { -webkit-appearance: slider-vertical; writing-mode: bt-lr; width: 8px; height: 300px; background: rgba(255, 0, 255, 0.2); border-radius: 10px; outline: none; cursor: pointer; touch-action: none; }
         #volume-slider::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 25px; height: 25px; border-radius: 50%; background: #ff00ff; cursor: pointer; box-shadow: 0 0 15px #ff00ff; }
         #volume-slider::-moz-range-thumb { width: 25px; height: 25px; border-radius: 50%; background: #ff00ff; cursor: pointer; border: none; box-shadow: 0 0 15px #ff00ff; }
         .volume-label { color: #ff00ff; font-size: 0.9rem; font-weight: bold; writing-mode: vertical-rl; text-orientation: mixed; letter-spacing: 2px; }
@@ -16,16 +17,16 @@
         .volume-icon { width: 40px; height: 40px; border: 2px solid #ff00ff; border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow: 0 0 10px #ff00ff; background: rgba(255, 0, 255, 0.1); }
         #status { color: #00ffcc; margin-bottom: 20px; font-weight: bold; text-transform: uppercase; letter-spacing: 2px; }
         .icon-container { display: flex; flex-direction: column; align-items: center; gap: 15px; }
-        #voice-icon { width: 80px; height: 80px; border: 3px solid #00ffcc; border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow: 0 0 15px #00ffcc; cursor: pointer; background: rgba(0, 255, 204, 0.1); transition: all 0.3s; }
-        #voice-icon:hover { background: rgba(0, 255, 204, 0.3); transform: scale(1.05); }
+        #voice-icon { width: 80px; height: 80px; border: 3px solid #00ffcc; border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow: 0 0 15px #00ffcc; cursor: pointer; background: rgba(0, 255, 204, 0.1); transition: transform 0.2s ease, background 0.2s ease; will-change: transform; transform: translate3d(0,0,0); touch-action: manipulation; }
+        @media (hover: hover) { #voice-icon:hover { background: rgba(0, 255, 204, 0.3); transform: translate3d(0,0,0) scale(1.05); } }
         #voice-icon.active { background: rgba(0, 255, 204, 0.3); box-shadow: 0 0 25px #00ffcc; }
         .drum-effects-container { position: relative; display: flex; align-items: center; justify-content: center; gap: 40px; }
-        .effect-btn { width: 70px; height: 70px; border: 3px solid #ffaa00; border-radius: 50%; display: flex; flex-direction: column; align-items: center; justify-content: center; box-shadow: 0 0 15px #ffaa00; cursor: pointer; background: rgba(255, 170, 0, 0.1); transition: all 0.3s; font-size: 0.7rem; color: #ffaa00; font-weight: bold; }
-        .effect-btn:hover { background: rgba(255, 170, 0, 0.3); transform: scale(1.05); }
+        .effect-btn { width: 70px; height: 70px; border: 3px solid #ffaa00; border-radius: 50%; display: flex; flex-direction: column; align-items: center; justify-content: center; box-shadow: 0 0 15px #ffaa00; cursor: pointer; background: rgba(255, 170, 0, 0.1); transition: transform 0.2s ease, background 0.2s ease; font-size: 0.7rem; color: #ffaa00; font-weight: bold; will-change: transform; transform: translate3d(0,0,0); touch-action: manipulation; }
+        @media (hover: hover) { .effect-btn:hover { background: rgba(255, 170, 0, 0.3); transform: translate3d(0,0,0) scale(1.05); } }
         .effect-btn.active { background: rgba(255, 170, 0, 0.4); box-shadow: 0 0 25px #ffaa00; border-color: #ffcc00; }
         .effect-btn svg { margin-bottom: 3px; }
-        #drum-icon { width: 200px; height: 200px; border: 4px solid #ff00ff; border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow: 0 0 20px #ff00ff; transition: transform 0.1s; cursor: pointer; }
-        #drum-icon.pulse { transform: scale(1.1); background: rgba(255, 0, 255, 0.2); }
+        #drum-icon { width: 200px; height: 200px; border: 4px solid #ff00ff; border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow: 0 0 20px #ff00ff; transition: transform 0.1s ease; cursor: pointer; will-change: transform; transform: translate3d(0,0,0); touch-action: manipulation; }
+        #drum-icon.pulse { transform: translate3d(0,0,0) scale(1.1); background: rgba(255, 0, 255, 0.2); }
         @keyframes pulse {
             0% { transform: scale(1); }
             50% { transform: scale(1.1); background: rgba(255, 0, 255, 0.2); }
@@ -34,8 +35,8 @@
         #drum-icon.pulsing { animation: pulse 0.1s ease-out; will-change: transform; }
         h1 { margin-top: 30px; font-size: 1.2rem; color: #aaa; }
         .controls { margin-top: 40px; display: flex; gap: 20px; flex-wrap: wrap; justify-content: center; }
-        button { background: transparent; border: 1px solid #fff; color: #fff; padding: 10px 20px; border-radius: 20px; cursor: pointer; }
-        button:hover { background: #fff; color: #000; }
+        button { background: transparent; border: 1px solid #fff; color: #fff; padding: 10px 20px; border-radius: 20px; cursor: pointer; transition: background 0.2s ease, color 0.2s ease; touch-action: manipulation; }
+        @media (hover: hover) { button:hover { background: #fff; color: #000; } }
         .tempo-control { margin-top: 20px; display: flex; flex-direction: column; align-items: center; gap: 10px; }
         .tempo-control input { width: 200px; }
         .tempo-control label { color: #aaa; font-size: 0.9rem; }
@@ -46,8 +47,8 @@
         .effect-slider-group input { width: 150px; }
         .slider-value { color: #ffaa00; font-weight: bold; font-size: 1rem; }
         button.active { background: #00ffcc; color: #000; border-color: #00ffcc; }
-        .instructions-btn { background: rgba(255, 255, 255, 0.05); border: 1px solid #666; color: #aaa; padding: 5px 15px; font-size: 0.8rem; border-radius: 15px; cursor: pointer; margin-top: 10px; }
-        .instructions-btn:hover { background: rgba(255, 255, 255, 0.1); color: #fff; }
+        .instructions-btn { background: rgba(255, 255, 255, 0.05); border: 1px solid #666; color: #aaa; padding: 5px 15px; font-size: 0.8rem; border-radius: 15px; cursor: pointer; margin-top: 10px; touch-action: manipulation; }
+        @media (hover: hover) { .instructions-btn:hover { background: rgba(255, 255, 255, 0.1); color: #fff; } }
         
         /* Mobile optimizations */
         @media (max-width: 768px) {
@@ -216,6 +217,8 @@ let audioPlayer = new Audio(); // Reuse single audio object
 audioPlayer.preload = 'auto';
 let lastBeatTime = 0;
 let beatDrift = 0;
+let lastInteraction = 0;
+const DEBOUNCE_DELAY = 150;
 
 // Web Audio API setup
 let audioContext = null;
@@ -230,12 +233,16 @@ let distortionAmount = 50;
 let masterVolume = 1.0;
 
 function shuffleKick() {
+    const now = Date.now();
+    if (now - lastInteraction < DEBOUNCE_DELAY) return;
+    lastInteraction = now;
+    
     const drum = document.getElementById('drum-icon');
     const fileText = document.getElementById('filename');
     
     // Select random file
     currentKick = kickLibrary[Math.floor(Math.random() * kickLibrary.length)];
-    fileText.innerText = currentKick.toUpperCase();
+    fileText.textContent = currentKick.toUpperCase();
 
     // Play the actual audio file
     if (reverbEnabled || distortionEnabled) {
@@ -245,7 +252,7 @@ function shuffleKick() {
         audio.volume = masterVolume;
         audio.play().catch(err => {
             console.error('Audio playback failed:', err);
-            document.getElementById('status').innerText = 'Tap to play';
+            document.getElementById('status').textContent = 'Tap to play';
         });
     }
 
@@ -256,6 +263,10 @@ function shuffleKick() {
 }
 
 function playCurrentKick() {
+    const now = Date.now();
+    if (now - lastInteraction < DEBOUNCE_DELAY) return;
+    lastInteraction = now;
+    
     if (!currentKick) {
         shuffleKick();
         return;
@@ -270,7 +281,7 @@ function playCurrentKick() {
         audio.volume = masterVolume;
         audio.play().catch(err => {
             console.error('Audio playback failed:', err);
-            document.getElementById('status').innerText = 'Tap to play';
+            document.getElementById('status').textContent = 'Tap to play';
         });
     }
     
@@ -348,7 +359,7 @@ function playWithEffects(audioFile) {
         })
         .catch(err => {
             console.error('Audio playback with effects failed:', err);
-            document.getElementById('status').innerText = 'Effects failed';
+            document.getElementById('status').textContent = 'Effects failed';
         });
 }
 
@@ -389,7 +400,7 @@ function createReverbImpulse(intensity = 0.5) {
 
 function setVolume(value) {
     masterVolume = parseInt(value) / 100;
-    document.getElementById('volume-display').innerText = value + '%';
+    document.getElementById('volume-display').textContent = value + '%';
     
     // Update volume for Web Audio API if it exists
     if (gainNode) {
@@ -399,12 +410,12 @@ function setVolume(value) {
 
 function setReverbAmount(value) {
     reverbAmount = parseInt(value);
-    document.getElementById('reverb-value').innerText = reverbAmount + '%';
+    document.getElementById('reverb-value').textContent = reverbAmount + '%';
 }
 
 function setDistortionAmount(value) {
     distortionAmount = parseInt(value);
-    document.getElementById('distortion-value').innerText = distortionAmount + '%';
+    document.getElementById('distortion-value').textContent = distortionAmount + '%';
 }
 
 function toggleReverb() {
@@ -415,15 +426,15 @@ function toggleReverb() {
     
     if (reverbEnabled) {
         btn.classList.add('active');
-        status.innerText = 'Reverb: ON';
+        status.textContent = 'Reverb: ON';
     } else {
         btn.classList.remove('active');
-        status.innerText = 'Reverb: OFF';
+        status.textContent = 'Reverb: OFF';
     }
     
     setTimeout(() => {
-        if (!isLooping && !isVoiceActive) status.innerText = 'Voice Standby';
-        else if (isVoiceActive) status.innerText = 'Listening...';
+        if (!isLooping && !isVoiceActive) status.textContent = 'Voice Standby';
+        else if (isVoiceActive) status.textContent = 'Listening...';
     }, 2000);
 }
 
@@ -435,15 +446,15 @@ function toggleDistortion() {
     
     if (distortionEnabled) {
         btn.classList.add('active');
-        status.innerText = 'Distortion: ON';
+        status.textContent = 'Distortion: ON';
     } else {
         btn.classList.remove('active');
-        status.innerText = 'Distortion: OFF';
+        status.textContent = 'Distortion: OFF';
     }
     
     setTimeout(() => {
-        if (!isLooping && !isVoiceActive) status.innerText = 'Voice Standby';
-        else if (isVoiceActive) status.innerText = 'Listening...';
+        if (!isLooping && !isVoiceActive) status.textContent = 'Voice Standby';
+        else if (isVoiceActive) status.textContent = 'Listening...';
     }, 2000);
 }
 
@@ -455,9 +466,9 @@ function toggleLoop() {
         // Stop loop
         isLooping = false;
         clearInterval(loopInterval);
-        btn.innerText = 'Start Loop';
+        btn.textContent = 'Start Loop';
         btn.classList.remove('active');
-        status.innerText = 'Loop Stopped';
+        status.textContent = 'Loop Stopped';
     } else {
         // Start loop with drift compensation
         isLooping = true;
@@ -477,15 +488,15 @@ function toggleLoop() {
             lastBeatTime = expectedTime; // Use expected time to prevent drift
         }, intervalTime);
         
-        btn.innerText = 'Stop Loop';
+        btn.textContent = 'Stop Loop';
         btn.classList.add('active');
-        status.innerText = 'Looping at ' + bpm + ' BPM';
+        status.textContent = 'Looping at ' + bpm + ' BPM';
     }
 }
 
 function setTempo(value) {
     bpm = parseInt(value);
-    document.getElementById('tempo-display').innerText = bpm;
+    document.getElementById('tempo-display').textContent = bpm;
     
     // If currently looping, restart with new tempo and reset drift
     if (isLooping) {
@@ -504,7 +515,7 @@ function setTempo(value) {
             lastBeatTime = expectedTime;
         }, intervalTime);
         
-        document.getElementById('status').innerText = 'Looping at ' + bpm + ' BPM';
+        document.getElementById('status').textContent = 'Looping at ' + bpm + ' BPM';
     }
 }
 
@@ -537,9 +548,9 @@ function downloadKick() {
     document.body.removeChild(link);
     
     const status = document.getElementById('status');
-    status.innerText = 'Download Started';
+    status.textContent = 'Download Started';
     setTimeout(() => {
-        if (!isLooping) status.innerText = isVoiceActive ? 'Listening...' : 'Voice Standby';
+        if (!isLooping) status.textContent = isVoiceActive ? 'Listening...' : 'Voice Standby';
     }, 2000);
 }
 
@@ -566,10 +577,10 @@ function sendEmail() {
     window.location.href = `mailto:${userEmail}?subject=${subject}&body=${body}`;
     
     const status = document.getElementById('status');
-    status.innerText = 'Opening email...';
+    status.textContent = 'Opening email...';
     
     setTimeout(() => {
-        if (!isLooping) status.innerText = isVoiceActive ? 'Listening...' : 'Voice Standby';
+        if (!isLooping) status.textContent = isVoiceActive ? 'Listening...' : 'Voice Standby';
     }, 2000);
 }
 
@@ -584,7 +595,7 @@ function toggleVoice() {
         }
         isVoiceActive = false;
         icon.classList.remove('active');
-        status.innerText = 'Voice Stopped';
+        status.textContent = 'Voice Stopped';
     } else {
         // Check for microphone permissions first
         if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
@@ -621,12 +632,12 @@ function startVoiceRecognition(icon, status) {
     recognition.onstart = function() {
         isVoiceActive = true;
         icon.classList.add('active');
-        status.innerText = 'Listening...';
+        status.textContent = 'Listening...';
     };
     
     recognition.onresult = function(event) {
         const transcript = event.results[event.results.length - 1][0].transcript.toLowerCase().trim();
-        status.innerText = 'Heard: ' + transcript;
+        status.textContent = 'Heard: ' + transcript;
         
         // Voice commands
         if (transcript.includes('shuffle') || transcript.includes('next') || transcript.includes('new kick')) {
@@ -658,15 +669,15 @@ function startVoiceRecognition(icon, status) {
         }
         
         setTimeout(() => {
-            if (isVoiceActive && !isLooping) status.innerText = 'Listening...';
+            if (isVoiceActive && !isLooping) status.textContent = 'Listening...';
         }, 2000);
     };
     
     recognition.onerror = function(event) {
         console.error('Speech recognition error:', event.error);
-        status.innerText = 'Error: ' + event.error;
+        status.textContent = 'Error: ' + event.error;
         setTimeout(() => {
-            if (isVoiceActive) status.innerText = 'Listening...';
+            if (isVoiceActive) status.textContent = 'Listening...';
         }, 2000);
     };
     
@@ -680,11 +691,11 @@ function startVoiceRecognition(icon, status) {
 }
 
 // Initialize with random kick on page load
-window.onload = function() {
+window.addEventListener('load', function() {
     const fileText = document.getElementById('filename');
     currentKick = kickLibrary[Math.floor(Math.random() * kickLibrary.length)];
-    fileText.innerText = currentKick.toUpperCase();
-};
+    fileText.textContent = currentKick.toUpperCase();
+}, { passive: true });
     </script>
 </body>
 </html>
