@@ -218,7 +218,7 @@ audioPlayer.preload = 'auto';
 let lastBeatTime = 0;
 let beatDrift = 0;
 let lastInteraction = 0;
-const DEBOUNCE_DELAY = 150;
+const DEBOUNCE_DELAY = 300; // Increased from 150ms for better mobile performance
 
 // Web Audio API setup
 let audioContext = null;
@@ -231,6 +231,11 @@ let distortionEnabled = false;
 let reverbAmount = 50;
 let distortionAmount = 50;
 let masterVolume = 1.0;
+
+// Audio object pool for better performance
+let audioPool = [];
+const POOL_SIZE = 3;
+let poolIndex = 0;
 
 function shuffleKick() {
     const now = Date.now();
@@ -248,18 +253,24 @@ function shuffleKick() {
     if (reverbEnabled || distortionEnabled) {
         playWithEffects(currentKick);
     } else {
-        const audio = new Audio(currentKick);
-        audio.volume = masterVolume;
-        audio.play().catch(err => {
+        // Use pooled audio object for better performance
+        if (audioPool[poolIndex]) {
+            audioPool[poolIndex].pause();
+            audioPool[poolIndex].currentTime = 0;
+        } else {
+            audioPool[poolIndex] = new Audio();
+        }
+        audioPool[poolIndex].src = currentKick;
+        audioPool[poolIndex].volume = masterVolume;
+        audioPool[poolIndex].play().catch(err => {
             console.error('Audio playback failed:', err);
-            document.getElementById('status').textContent = 'Tap to play';
         });
+        poolIndex = (poolIndex + 1) % POOL_SIZE;
     }
 
-    // Visual pulse using CSS animation
-    drum.classList.remove('pulsing');
-    void drum.offsetWidth; // Force reflow
+    // Visual pulse using CSS animation (no forced reflow)
     drum.classList.add('pulsing');
+    setTimeout(() => drum.classList.remove('pulsing'), 100);
 }
 
 function playCurrentKick() {
@@ -277,18 +288,24 @@ function playCurrentKick() {
     if (reverbEnabled || distortionEnabled) {
         playWithEffects(currentKick);
     } else {
-        const audio = new Audio(currentKick);
-        audio.volume = masterVolume;
-        audio.play().catch(err => {
+        // Use pooled audio object for better performance
+        if (audioPool[poolIndex]) {
+            audioPool[poolIndex].pause();
+            audioPool[poolIndex].currentTime = 0;
+        } else {
+            audioPool[poolIndex] = new Audio();
+        }
+        audioPool[poolIndex].src = currentKick;
+        audioPool[poolIndex].volume = masterVolume;
+        audioPool[poolIndex].play().catch(err => {
             console.error('Audio playback failed:', err);
-            document.getElementById('status').textContent = 'Tap to play';
         });
+        poolIndex = (poolIndex + 1) % POOL_SIZE;
     }
     
-    // Visual pulse using CSS animation
-    drum.classList.remove('pulsing');
-    void drum.offsetWidth; // Force reflow
+    // Visual pulse using CSS animation (no forced reflow)
     drum.classList.add('pulsing');
+    setTimeout(() => drum.classList.remove('pulsing'), 100);
 }
 
 function playWithEffects(audioFile) {
@@ -296,8 +313,8 @@ function playWithEffects(audioFile) {
     const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
     
     if (!audioContext) {
-        // Use lower sample rate on mobile for better performance
-        const contextOptions = isMobile ? { sampleRate: 22050 } : {};
+        // Use very low sample rate on mobile for maximum performance
+        const contextOptions = isMobile ? { sampleRate: 16000 } : { sampleRate: 44100 };
         audioContext = new (window.AudioContext || window.webkitAudioContext)(contextOptions);
         
         // Create nodes
@@ -368,24 +385,32 @@ function playWithEffects(audioFile) {
 
 function makeDistortionCurve(amount) {
     const k = typeof amount === 'number' ? amount : 50;
-    // Ultra-low samples on mobile for maximum performance
+    // Absolute minimum samples on mobile for maximum performance
     const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-    const n_samples = isMobile ? 2048 : 22050; // Minimal sample count
+    const n_samples = isMobile ? 1024 : 22050; // Minimal sample count
     const curve = new Float32Array(n_samples);
     const deg = Math.PI / 180;
     
-    for (let i = 0; i < n_samples; i++) {
-        const x = (i * 2) / n_samples - 1;
-        curve[i] = ((3 + k) * x * 20 * deg) / (Math.PI + k * Math.abs(x));
+    // Simplified calculation on mobile
+    if (isMobile) {
+        for (let i = 0; i < n_samples; i++) {
+            const x = (i * 2) / n_samples - 1;
+            curve[i] = Math.tanh(x * k / 10); // Simpler tanh curve
+        }
+    } else {
+        for (let i = 0; i < n_samples; i++) {
+            const x = (i * 2) / n_samples - 1;
+            curve[i] = ((3 + k) * x * 20 * deg) / (Math.PI + k * Math.abs(x));
+        }
     }
     return curve;
 }
 
 function createReverbImpulse(intensity = 0.5) {
     const sampleRate = audioContext.sampleRate;
-    // Ultra-short reverb and mono on mobile for maximum performance
+    // Absolute minimum reverb on mobile for maximum performance
     const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-    const reverbLength = isMobile ? (0.1 + intensity * 0.2) : (1 + intensity * 2); // Extremely short on mobile
+    const reverbLength = isMobile ? (0.05 + intensity * 0.1) : (1 + intensity * 2); // Extremely minimal on mobile
     const length = sampleRate * reverbLength;
     const channels = isMobile ? 1 : 2; // Mono on mobile, stereo on desktop
     const impulse = audioContext.createBuffer(channels, length, sampleRate);
